@@ -1,0 +1,22 @@
+---
+galaxy_info:
+  author: Florian Goth
+  role_name: drupal
+  namespace: geekoops
+  description: Configurable Drupal setup role
+  issue_tracker_url: ""
+
+  license: license MIT
+
+  min_ansible_version: 2.9
+
+  platforms:
+    - name: opensuse
+      versions:
+#        - 15.3
+        - 15.4
+#    - name: debian
+#      versions:
+#        - bullseye
+
+dependencies: []

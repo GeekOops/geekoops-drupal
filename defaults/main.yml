@@ -1,0 +1,7 @@
+---
+sqlbackup: ""
+drupal_location: "drupal9-hp"
+drupal_db_name: "drupal_hp"
+drupal_db_user: "drupal_user"
+drupal_db_pw: lookup('community.general.random_string', min_lower=1, min_upper=1, min_special=1, min_numeric=1, length=12)
+drupal_trusted_host_pattern: "^www\.example\.com$"

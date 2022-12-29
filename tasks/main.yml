@@ -1,0 +1,178 @@
+- name: enable server:php repository
+  community.general.zypper_repository:
+    name: server:php:applications
+    repo: 'https://download.opensuse.org/repositories/server:/php:/applications/15.4/'
+    state: present
+    runrefresh: true
+    auto_import_keys: yes
+
+- name: Refresh repos and update packages
+  community.general.zypper:
+    name: '*'
+    state: latest
+    update_cache: yes
+
+- name: Install composer + useful php9 packages
+  ansible.builtin.package:
+    name:
+      - php-composer2
+      - php8-pdo
+      - php8-mysql
+      - php8-xmlreader
+      - php8-xmlwriter
+      - php8-ldap
+      - php8-gd
+      - php8-dom
+      - php8-openssl
+      - php8-curl
+      - php8-mbstring
+      - php8-fastcgi
+    state: present
+
+- name: Ensure absence of vendor provided drupal packages
+  ansible.builtin.package:
+    name:
+      - drupal9
+      - drupal9-apache2
+      - drupal9-fpm
+    state: absent
+
+- name: create {{ drupal_location }} directory
+  ansible.builtin.file:
+    path: "/srv/www/{{ drupal_location }}"
+    state: directory
+    mode: '0755'
+    group: 'www'
+    owner: 'wwwrun'
+
+- name: create {{ drupal_location }}-data/private directory
+  ansible.builtin.file:
+    path: "/srv/www/{{ drupal_location }}-data/private"
+    state: directory
+    mode: '0755'
+    group: 'www'
+    owner: 'wwwrun'
+
+- name: create {{ drupal_location }}-data/tmp directory
+  ansible.builtin.file:
+    path: "/srv/www/{{ drupal_location }}-data/tmp"
+    state: directory
+    mode: '0755'
+    group: 'www'
+    owner: 'wwwrun'
+
+- name: copy over the composer file to get all data
+  ansible.builtin.template:
+    src: composer.json.j2
+    dest: "/srv/www/{{ drupal_location }}/composer.json"
+    mode: '0755'
+    group: 'www'
+    owner: 'wwwrun'
+
+- name: Execute composer install
+  become: yes
+  become_method: sudo
+  become_user: wwwrun
+  ansible.builtin.command:
+  args:
+    cmd: sudo -u wwwrun composer2 install
+    chdir: "/srv/www/{{ drupal_location }}"
+
+- name: create drupal mysql database
+  community.mysql.mysql_db:
+    name: "{{ drupal_db_name }}"
+    state: present
+
+- name: Create mysql user for drupal
+  community.mysql.mysql_user:
+    name: "{{ drupal_db_user }}"
+    password: "{{ drupal_db_pw }}"
+    state: present
+
+- name: create drupal database user
+  community.mysql.mysql_user:
+    name: "{{ drupal_db_user }}"
+    password: "{{ drupal_db_pw }}"
+    state: present
+    priv:
+      '{{ drupal_db_name }}.*:SELECT,INSERT,UPDATE,DELETE,CREATE,DROP,INDEX,ALTER,CREATE TEMPORARY TABLES,LOCK TABLES,GRANT'
+
+- name: duplicate the settings.php file of drupal
+  ansible.builtin.copy:
+    remote_src: true
+    src: "/srv/www/{{ drupal_location }}/web/sites/default/default.settings.php"
+    dest: "/srv/www/{{ drupal_location }}/web/sites/default/settings.php"
+
+- name: configure the settings.php of drupal
+  ansible.builtin.blockinfile:
+    path: "/srv/www/{{ drupal_location }}/web/sites/default/settings.php"
+    state: present
+    mode: '0440'
+    group: 'www'
+    owner: 'wwwrun'
+    block: |
+      $settings['file_private_path'] = '/srv/www/{{ drupal_location }}-data/private';
+      $settings['file_temp_path'] = '/srv/www/{{ drupal_location }}-data/tmp';
+      $databases['default']['default'] = array (
+        'database' => '{{ drupal_db_name }}',
+        'username' => '{{ drupal_db_user }}',
+        'password' => '{{ drupal_db_pw }}',
+        'prefix' => '',
+        'host' => 'localhost',
+        'port' => '3306',
+        'namespace' => 'Drupal\\Core\\Database\\Driver\\mysql',
+        'driver' => 'mysql',
+        'init_commands' => [
+          'isolation_level' => 'SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED',
+        ],
+      );
+
+- name: configure the trusted host setting of Drupal
+  ansible.builtin.lineinfile:
+    path: "/srv/www/{{ drupal_location }}/web/sites/default/settings.php"
+    line: "$settings['trusted_host_patterns'] = ['{{ drupal_trusted_host_pattern }}',];"
+  when: drupal_trusted_host_pattern| length > 0
+
+- name: Ensure AppArmor lets php-fpm read the drupal folder
+  ansible.builtin.lineinfile:
+    path: /etc/apparmor.d/local/php-fpm
+    line: "/srv/www/{{ drupal_location }}/** r,"
+
+- name: Ensure AppArmor lets php-fpm write to the public drupal site data
+  ansible.builtin.lineinfile:
+    path: /etc/apparmor.d/local/php-fpm
+    line: "/srv/www/{{ drupal_location }}/web/sites/** rw,"
+
+- name: Ensure AppArmor lets php-fpm write to the private and temporary data storages
+  ansible.builtin.lineinfile:
+    path: /etc/apparmor.d/local/php-fpm
+    line: "/srv/www/{{ drupal_location }}-data/web/sites/** rw,"
+
+# Copy database dump file to remote host and restore it to database 'my_db'
+- name: Copy database dump file
+  ansible.builtin.copy:
+    src: "{{ sqlbackup }}"
+    dest: /tmp
+  when: sqlbackup| length > 0
+
+- name: optionally play back an SQL backup
+  community.mysql.mysql_db:
+    name: "{{ drupal_db_name }}"
+    state: import
+    target: "/tmp/{{ sqlbackup }}"
+  when: sqlbackup| length > 0
+
+- name: drupal-9 recommends that sites/default is not writable by anyone
+  ansible.builtin.file:
+    path: "/srv/www/{{ drupal_location }}/web/sites/default"
+    state: directory
+    mode: '0550'
+    group: 'www'
+    owner: 'wwwrun'
+
+- name: Set cronjob to update drupal and plugins
+  ansible.builtin.cron:
+    name: "drupalupdate"
+    special_time: weekly
+    state: present
+    job: "cd /srv/www/{{ drupal_location }} && sudo -u wwwrun composer2 update"
