@@ -1,4 +1,4 @@
-[![Test deployment](https://github.com/GeekOops/geekoops-letsencrypt-apache/actions/workflows/CI.yml/badge.svg)](https://github.com/GeekOops/geekoops-letsencrypt-apache/actions/workflows/CI.yml)
+[![Test deployment](https://github.com/GeekOops/geekoops-drupal/actions/workflows/CI.yml/badge.svg)](https://github.com/GeekOops/geekoops-drupal/actions/workflows/CI.yml)
 
 # Set up Drupal
 
@@ -18,10 +18,10 @@ You can set the following variables to configure the role. Here listed are the v
 |-------|-------------|---------|
 |`sqlbackup` | file with an sql backup | "" |
 |`drupal_location` | install location of drupal in /srv/www | "drupal9-hp" |
-|`drupal_db_name` | Who gets update notifications | "" |
-|`drupal_db_user` | Who gets update notifications | "" |
-|`drupal_dp_pw` | Who gets update notifications | "" |
-|`drupal_trusted_host_pattern` | Who gets update notifications | "" |
+|`drupal_db_name` | name of mysql database | "drupal_hp" |
+|`drupal_db_user` | mysql user | "drupal_user" |
+|`drupal_db_pw` | password of mysql user | randomly generated? |
+|`drupal_trusted_host_pattern` | A regex to trust certain hostnames, e.g. your own. | "^www\.example\.com$" |
 
 ## Example Playbook
 
@@ -29,7 +29,7 @@ Including an example of how to use your role (for instance, with variables passe
 
     - hosts: jellyfish
       roles:
-         - { role: geekoops-drupal, letsencrypt_domains: "www.example.org", letsencrypt_mail_address: "webmaster@example.org" }
+         - { role: geekoops-drupal, drupal_db_user: "drupal-user", drupal_db_pw: "1234abcd" }
 
 An advanced example for the imaginary `jellyfish` test server
 
@@ -37,11 +37,8 @@ An advanced example for the imaginary `jellyfish` test server
       roles:
          - role: geekoops-drupal
            vars:
-             letsencrypt_mail_address: "webmaster@example.org"
-             letsencrypt_domains:
-               - "www.example.org"
-               - "smtp.example.org"
-               - "imap.example.org"
+             - drupal_db_user: "drupal-user"
+             - drupal_db_pw: "1234abcd"
 
 ## Stuff to do afterwards
 - If you replayed a backup, you need to copy over files, modules, themes...
@@ -51,6 +48,6 @@ An advanced example for the imaginary `jellyfish` test server
 
 MIT
 
-# Development
+## Development
 - extend to setup the webserver. Currently we don't provide a vhost for it.
 - Test on 15.3
