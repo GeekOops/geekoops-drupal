@@ -37,8 +37,8 @@ An advanced example for the imaginary `jellyfish` test server
       roles:
          - role: geekoops-drupal
            vars:
-             - drupal_db_user: "drupal-user"
-             - drupal_db_pw: "1234abcd"
+             drupal_db_user: "drupal-user"
+             drupal_db_pw: "1234abcd"
 
 ## Stuff to do afterwards
 - If you replayed a backup, you need to copy over files, modules, themes...
