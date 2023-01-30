@@ -141,12 +141,12 @@
 - name: Ensure AppArmor lets php-fpm write to the public drupal site data
   ansible.builtin.lineinfile:
     path: /etc/apparmor.d/local/php-fpm
-    line: "/srv/www/{{ drupal_location }}/web/sites/** rw,"
+    line: "/srv/www/{{ drupal_location }}/web/sites/** rwlk,"
 
 - name: Ensure AppArmor lets php-fpm write to the private and temporary data storages
   ansible.builtin.lineinfile:
     path: /etc/apparmor.d/local/php-fpm
-    line: "/srv/www/{{ drupal_location }}-data/** rw,"
+    line: "/srv/www/{{ drupal_location }}-data/** rwlk,"
 
 - name: Ensure AppArmor lets php-fpm write to the modules directory
   ansible.builtin.lineinfile:
