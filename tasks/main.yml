@@ -153,6 +153,10 @@
     path: /etc/apparmor.d/local/php-fpm
     line: "/srv/www/{{ drupal_location }}-data/web/modules/** rw,"
 
+- name: Ensure AppArmor lets php-fpm write to the themes directory
+  ansible.builtin.lineinfile:
+    path: /etc/apparmor.d/local/php-fpm
+    line: "/srv/www/{{ drupal_location }}-data/web/themes/** rw,"
 
 # Copy database dump file to remote host and restore it to database 'my_db'
 - name: Copy database dump file
