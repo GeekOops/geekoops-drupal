@@ -185,4 +185,4 @@
     name: "drupalupdate"
     special_time: weekly
     state: present
-    job: "cd /srv/www/{{ drupal_location }} && sudo -u wwwrun composer2 update"
+    job: "cd /srv/www/{{ drupal_location }} && chmod +w /srv/www/{{ drupal_location }}/web/sites/default && sudo -u wwwrun composer2 update && chmod -w /srv/www/{{ drupal_location }}/web/sites/default
